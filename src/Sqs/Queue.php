@@ -51,10 +51,10 @@ class Queue extends SqsQueue
     /**
      * Pop the next job off of the queue.
      *
-     * @param string|null $queue
-     * @return SqsJob|Job|null
+     * @param  string|null  $queue
+     * @return \Illuminate\Contracts\Queue\Job|null
      */
-    public function pop(string|null $queue = null): SqsJob|Job|null
+    public function pop($queue = null)
     {
         $queue = $this->getQueue($queue);
 
