@@ -13,8 +13,8 @@ But in certain cases you may want to parse messages from third party application
 
 ## Dependencies
 
-* PHP >= 5.5
-* Laravel (or Lumen) >= 5.2
+* PHP >= 8.3
+* Laravel >= 11.0
 
 ## Installation via Composer
 
