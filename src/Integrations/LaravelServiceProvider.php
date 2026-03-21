@@ -1,8 +1,8 @@
 <?php
 
-namespace Dusterio\PlainSqs\Integrations;
+namespace Tyamahori\PlainSqs\Integrations;
 
-use Dusterio\PlainSqs\Sqs\Connector;
+use Tyamahori\PlainSqs\Sqs\Connector;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Queue\Events\JobProcessed;
@@ -24,7 +24,7 @@ class LaravelServiceProvider extends ServiceProvider
             __DIR__ . '/../config/sqs-plain.php' => config_path('sqs-plain.php')
         ]);
 
-        Queue::after(function (JobProcessed $event) {
+        Queue::after(static function (JobProcessed $event) {
             $event->job->delete();
         });
     }
@@ -35,7 +35,7 @@ class LaravelServiceProvider extends ServiceProvider
     public function register()
     {
          $this->app->booted(function () {
-            $this->app['queue']->extend('sqs-plain', function () {
+            $this->app['queue']->extend('sqs-plain', static function () {
                 return new Connector();
             });
         });
