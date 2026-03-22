@@ -10,8 +10,9 @@ use Illuminate\Support\Facades\Config;
 
 class DispatcherJob implements ShouldQueue
 {
-    use InteractsWithQueue, Queueable, SerializesModels;
-
+    use InteractsWithQueue;
+    use Queueable;
+    use SerializesModels;
     protected bool $plain = false;
 
     /**
@@ -22,9 +23,6 @@ class DispatcherJob implements ShouldQueue
     ) {
     }
 
-    /**
-     * @return array
-     */
     public function getPayload(): array
     {
         if ($this->isPlain()) {

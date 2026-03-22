@@ -15,27 +15,22 @@ class LaravelServiceProvider extends ServiceProvider
 {
     /**
      * Bootstrap any application services.
-     *
-     * @return void
      */
-    public function boot()
+    public function boot(): void
     {
         $this->publishes([
             __DIR__ . '/../config/sqs-plain.php' => config_path('sqs-plain.php')
         ]);
 
-        Queue::after(static function (JobProcessed $event) {
+        Queue::after(static function (JobProcessed $event): void {
             $event->job->delete();
         });
     }
 
-    /**
-     * @return void
-     */
-    public function register()
+    public function register(): void
     {
-         $this->app->booted(function () {
-            $this->app['queue']->extend('sqs-plain', static function () {
+         $this->app->booted(function (): void {
+            $this->app['queue']->extend('sqs-plain', static function (): Connector {
                 return new Connector();
             });
         });

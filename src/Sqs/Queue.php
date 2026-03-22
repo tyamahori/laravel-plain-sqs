@@ -29,13 +29,10 @@ class Queue extends SqsQueue
         if ($job->isPlain()) {
             return json_encode($job->getPayload(), JSON_THROW_ON_ERROR);
         }
+
         return json_encode(['job' => $handlerJob, 'data' => $job->getPayload()], JSON_THROW_ON_ERROR);
     }
 
-    /**
-     * @param string|null $queue
-     * @return string
-     */
     private function getClass(string|null $queue = null): string
     {
         if ($queue === null) {
@@ -48,6 +45,7 @@ class Queue extends SqsQueue
         if (array_key_exists($queue, Config::get('sqs-plain.handlers'))) {
             return Config::get('sqs-plain.handlers')[$queue];
         }
+
         return Config::get('sqs-plain.default-handler');
     }
 
@@ -106,8 +104,6 @@ class Queue extends SqsQueue
 
     /**
      * @param string $payload
-     * @param null $queue
-     * @param array $options
      * @return mixed|null
      * @throws JsonException
      */
