@@ -1,11 +1,12 @@
 <?php
 
-namespace Dusterio\PlainSqs\Sqs;
+namespace Tyamahori\PlainSqs\Sqs;
 
-use Dusterio\PlainSqs\Jobs\DispatcherJob;
+use Tyamahori\PlainSqs\Jobs\DispatcherJob;
 use Illuminate\Queue\SqsQueue;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Queue\Jobs\SqsJob;
+use JsonException;
 
 /**
  * Class CustomSqsQueue
@@ -15,13 +16,9 @@ class Queue extends SqsQueue
 {
     /**
      * Create a payload string from the given job and data.
-     *
-     * @param  string  $job
-     * @param  mixed   $data
-     * @param  string  $queue
-     * @return string
+     * @throws JsonException
      */
-    protected function createPayload($job, $queue, $data = '', $delay = null)
+    protected function createPayload($job, $queue, $data = '', $delay = null): string
     {
         if (!$job instanceof DispatcherJob) {
             return parent::createPayload($job, $queue, $data, $delay);
@@ -29,29 +26,33 @@ class Queue extends SqsQueue
 
         $handlerJob = $this->getClass($queue) . '@handle';
 
-        return $job->isPlain() ? json_encode($job->getPayload()) : json_encode(['job' => $handlerJob, 'data' => $job->getPayload()]);
+        if ($job->isPlain()) {
+            return json_encode($job->getPayload(), JSON_THROW_ON_ERROR);
+        }
+
+        return json_encode(['job' => $handlerJob, 'data' => $job->getPayload()], JSON_THROW_ON_ERROR);
+    }
+
+    private function getClass(string|null $queue = null): string
+    {
+        if ($queue === null) {
+            return Config::get('sqs-plain.default-handler');
+        }
+
+        $parts = explode('/', $queue);
+        $queue = end($parts);
+
+        if (array_key_exists($queue, Config::get('sqs-plain.handlers'))) {
+            return Config::get('sqs-plain.handlers')[$queue];
+        }
+
+        return Config::get('sqs-plain.default-handler');
     }
 
     /**
      * @param $queue
-     * @return string
-     */
-    private function getClass($queue = null)
-    {
-        if (!$queue) return Config::get('sqs-plain.default-handler');
-
-        $queue = end(explode('/', $queue));
-
-        return (array_key_exists($queue, Config::get('sqs-plain.handlers')))
-            ? Config::get('sqs-plain.handlers')[$queue]
-            : Config::get('sqs-plain.default-handler');
-    }
-
-    /**
-     * Pop the next job off of the queue.
-     *
-     * @param  string  $queue
-     * @return \Illuminate\Contracts\Queue\Job|null
+     * @return SqsJob|null
+     * @throws JsonException
      */
     public function pop($queue = null)
     {
@@ -72,53 +73,48 @@ class Queue extends SqsQueue
 
             $response = $this->modifyPayload($response['Messages'][0], $class);
 
-            if (preg_match(
-                '/(5\.[4-8]\..*)|(6\.[0-9]*\..*)|(7\.[0-9]*\..*)|(8\.[0-9]*\..*)|(9\.[0-9]*\..*)|(10\.[0-9]*\..*)|(11\.[0-9]*\..*)|(12\.[0-9]*\..*)/',
-                $this->container->version())
-            ) {
-                return new SqsJob($this->container, $this->sqs, $response, $this->connectionName, $queue);
-            }
-
-            return new SqsJob($this->container, $this->sqs, $queue, $response);
+            return new SqsJob($this->container, $this->sqs, $response, $this->connectionName, $queue);
         }
+
+        return null;
     }
 
-    /**
-     * @param string|array $payload
-     * @param string $class
-     * @return array
-     */
-    private function modifyPayload($payload, $class)
-    {
-        if (! is_array($payload)) $payload = json_decode($payload, true);
 
-        $body = json_decode($payload['Body'], true);
+    /**
+     * @throws JsonException
+     */
+    private function modifyPayload(string|array $payload, string $class): array
+    {
+        if (! is_array($payload)) {
+            $payload = json_decode($payload, true, 512, JSON_THROW_ON_ERROR);
+        }
+
+        $body = json_decode($payload['Body'], true, 512, JSON_THROW_ON_ERROR);
 
         $body = [
             'job' => $class . '@handle',
-            'data' => isset($body['data']) ? $body['data'] : $body,
+            'data' => $body['data'] ?? $body,
             'uuid' => $payload['MessageId']
         ];
 
-        $payload['Body'] = json_encode($body);
+        $payload['Body'] = json_encode($body, JSON_THROW_ON_ERROR);
 
         return $payload;
     }
 
     /**
      * @param string $payload
-     * @param null $queue
-     * @param array $options
      * @return mixed|null
+     * @throws JsonException
      */
-    public function pushRaw($payload, $queue = null, array $options = [])
+    public function pushRaw($payload, $queue = null, array $options = []): mixed
     {
-        $payload = json_decode($payload, true);
+        $payload = json_decode($payload, true, 512, JSON_THROW_ON_ERROR);
 
-        if (isset($payload['data']) && isset($payload['job'])) {
+        if (isset($payload['data'], $payload['job'])) {
             $payload = $payload['data'];
         }
 
-        return parent::pushRaw(json_encode($payload), $queue, $options);
+        return parent::pushRaw(json_encode($payload, JSON_THROW_ON_ERROR), $queue, $options);
     }
 }
